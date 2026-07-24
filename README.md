@@ -44,8 +44,8 @@ An advanced, end-to-end Voice AI Agent designed for intelligent contact centers.
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/voice-bot.git
-   cd voice-bot
+   git clone https://github.com/Aref-Shahsavari/Voice-bot.git
+   cd Voice-bot
    ```
 
 2. **Create and activate a virtual environment:**
