@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> AI | مرکز تماس هوشمند</title>
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="logo-area">
+                <div class="brand-logo">A</div>
+                <div class="brand-text">
+                    <h1>Call center <span>AI</span></h1>
+                    <p>نسل جدید پاسخگویی هوشمند</p>
+                </div>
+            </div>
+            <div class="system-status">
+                <span class="status-indicator"></span>
+                <span id="status-text">سیستم آماده است</span>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Left Side: Interaction -->
+            <div class="interaction-card">
+                <div class="mic-section">
+                    <div class="pulse-rings" id="pulse-rings"></div>
+                    <button id="mic-btn" class="mic-button" aria-label="میکروفون">
+                        <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                        </svg>
+                    </button>
+                    <div class="voice-visualizer" id="visualizer">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                    <p class="instruction" id="instruction">برای صحبت کردن کلیک کنید</p>
+                </div>
+
+                <div class="chat-display">
+                    <div class="chat-box user-box">
+                        <label>شنیده شده:</label>
+                        <p id="user-transcript">...</p>
+                    </div>
+                    <div class="chat-box bot-box">
+                        <label>پاسخ هوش مصنوعی:</label>
+                        <p id="bot-response">منتظر دستور شما...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Analytics -->
+            <aside class="analytics-sidebar">
+                <h3>تحلیل هوشمند (Analytics)</h3>
+                <div class="metric-grid">
+                    <div class="metric-item">
+                        <span>زمان پاسخ (Latency)</span>
+                        <strong id="m-latency">-</strong>
+                    </div>
+                    <div class="metric-item">
+                        <span>سطح اطمینان (Confidence)</span>
+                        <strong id="m-conf">-</strong>
+                    </div>
+                    <div class="metric-item">
+                        <span>مدل پردازش (Model)</span>
+                        <strong id="m-model">-</strong>
+                    </div>
+                </div>
+                <div class="log-panel">
+                    <h4>لاگ عملیات</h4>
+                    <div id="logs" class="logs-container">
+                        <div class="log-entry">سیستم آماده بارگذاری...</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        const micBtn = document.getElementById('mic-btn');
+        const pulse = document.getElementById('pulse-rings');
+        const visualizer = document.getElementById('visualizer');
+        const statusText = document.getElementById('status-text');
+
+        micBtn.onclick = async () => {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                setUIState('processing');
+            } else {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                    mediaRecorder.onstop = sendAudio;
+
+                    mediaRecorder.start();
+                    setUIState('recording');
+                } catch (err) {
+                    console.error(err);
+                    addLog("دسترسی به میکروفون ممکن نشد");
+                    setUIState('ready');
+                }
+            }
+        };
+
+        function setUIState(state) {
+            if (state === 'recording') {
+                pulse.classList.add('active');
+                visualizer.classList.add('active');
+                micBtn.classList.add('recording');
+                statusText.innerText = "در حال شنیدن...";
+                document.getElementById('instruction').innerText = "برای پایان صحبت دوباره کلیک کنید";
+            } else if (state === 'processing') {
+                pulse.classList.remove('active');
+                visualizer.classList.remove('active');
+                micBtn.classList.remove('recording');
+                micBtn.classList.add('processing');
+                statusText.innerText = "در حال پردازش...";
+                document.getElementById('instruction').innerText = "لطفا منتظر بمانید";
+            } else {
+                micBtn.classList.remove('processing');
+                statusText.innerText = "سیستم آماده است";
+                document.getElementById('instruction').innerText = "برای صحبت کردن کلیک کنید";
+            }
+        }
+
+        async function sendAudio() {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            const formData = new FormData();
+            formData.append('file', audioBlob);
+
+            try {
+                const response = await fetch('/process_audio', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "خطای ناشناخته از سرور");
+                }
+
+                document.getElementById('user-transcript').innerText = data.user_text;
+                document.getElementById('bot-response').innerText = data.bot_reply;
+
+                // بروزرسانی آمار
+                document.getElementById('m-latency').innerText = data.metrics.latency;
+                document.getElementById('m-conf').innerText = data.metrics.confidence;
+                document.getElementById('m-model').innerText = data.metrics.model;
+
+                // پخش صدا
+                const audio = new Audio(data.audio_url);
+                audio.play();
+
+                setUIState('ready');
+                addLog("پاسخ با موفقیت تولید شد.");
+            } catch (err) {
+                console.error(err);
+                document.getElementById('bot-response').innerText = "⚠️ " + err.message;
+                setUIState('ready');
+                addLog("خطا: " + err.message);
+            }
+        }
+
+        function addLog(msg) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerText = `[${new Date().toLocaleTimeString('fa-IR')}] ${msg}`;
+            const container = document.getElementById('logs');
+            container.prepend(div);
+        }
+    </script>
+</body>
+</html>
